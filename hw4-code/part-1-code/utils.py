@@ -13,6 +13,7 @@ import argparse
 from nltk.corpus import wordnet
 from nltk import word_tokenize
 from nltk.tokenize.treebank import TreebankWordDetokenizer
+from nltk.corpus import stopwords
 
 random.seed(0)
 
@@ -33,8 +34,73 @@ def example_transform(example):
 # something called synsets (which stands for synonymous words) and for each of them, lemmas() should give you a possible synonym word.
 # You can randomly select each word with some fixed probability to replace by a synonym.
 
+stop_words = set(stopwords.words("english"))
 
-def custom_transform(example):
+def synonym_replacement(sentence, prob=0.2):
+    words = word_tokenize(sentence)
+    new_words = []
+    for word in words:
+        if word.lower() in stop_words or not word.isalpha():
+            new_words.append(word)
+            continue
+        # Randomly decide to replace
+        if random.random() < prob:
+            synsets = wordnet.synsets(word)
+            if synsets:
+                lemmas = synsets[0].lemmas()
+                synonyms = [lemma.name().replace('_', ' ') 
+                            for lemma in lemmas if lemma.name().lower() != word.lower()]
+                if synonyms:
+                    new_word = random.choice(synonyms)
+                    new_words.append(new_word)
+                    continue
+        new_words.append(word)
+    return ' '.join(new_words)
+
+keyboard_neighbors = {
+    'a': ['s','q','w','z'],
+    'b': ['v','g','h','n'],
+    'c': ['x','d','f','v'],
+    'd': ['s','e','r','f','c','x'],
+    'e': ['w','s','d','r'],
+    'f': ['d','r','t','g','v','c'],
+    'g': ['f','t','y','h','b','v'],
+    'h': ['g','y','u','j','n','b'],
+    'i': ['u','j','k','o'],
+    'j': ['h','u','i','k','n','m'],
+    'k': ['j','i','o','l','m'],
+    'l': ['k','o','p'],
+    'm': ['n','j','k'],
+    'n': ['b','h','j','m'],
+    'o': ['i','k','l','p'],
+    'p': ['o','l'],
+    'q': ['w','a'],
+    'r': ['e','d','f','t'],
+    's': ['a','w','e','d','x','z'],
+    't': ['r','f','g','y'],
+    'u': ['y','h','j','i'],
+    'v': ['c','f','g','b'],
+    'w': ['q','a','s','e'],
+    'x': ['z','s','d','c'],
+    'y': ['t','g','h','u'],
+    'z': ['a','s','x'],
+}
+
+def typo_transform(sentence, prob=0.2):
+    words = sentence.split()
+    new_words = []
+    for word in words:
+        if random.random() < prob:
+            chars = list(word)
+            idx = random.randrange(len(chars))
+            c = chars[idx].lower()
+            if c in keyboard_neighbors:
+                chars[idx] = random.choice(keyboard_neighbors[c])
+            word = ''.join(chars)
+        new_words.append(word)
+    return ' '.join(new_words)
+
+def custom_transform(example, typo=True, prob=0.1):
     ################################
     ##### YOUR CODE BEGINGS HERE ###
 
@@ -44,7 +110,10 @@ def custom_transform(example):
 
     # You should update example["text"] using your transformation
 
-    raise NotImplementedError
+    if typo:
+        example["text"] = typo_transform(example["text"], prob)
+    else:
+        example["text"] = synonym_replacement(example["text"], prob)
 
     ##### YOUR CODE ENDS HERE ######
 
