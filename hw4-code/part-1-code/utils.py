@@ -54,7 +54,7 @@ def example_transform(example):
 
 stop_words = set(stopwords.words("english"))
 
-def synonym_replacement(sentence, prob=0.5):
+def synonym_replacement(sentence, prob=0.2):
     words = word_tokenize(sentence)
     new_words = []
     for word in words:
@@ -107,7 +107,7 @@ keyboard_neighbors = {
     'z': ['a','s','x'],
 }
 
-def typo_transform(sentence, prob=0.25, typo_per_word=0.4):
+def typo_transform(sentence, prob=0.2, typo_per_word=0.2):
     words = sentence.split()
     new_words = []
     for word in words:
@@ -125,7 +125,7 @@ def typo_transform(sentence, prob=0.25, typo_per_word=0.4):
         new_words.append(word)
     return ' '.join(new_words)
 
-def custom_transform(example, typo=True, prob=0.5):
+def custom_transform(example, prob=0.2):
     ################################
     ##### YOUR CODE BEGINGS HERE ###
 
@@ -135,10 +135,8 @@ def custom_transform(example, typo=True, prob=0.5):
 
     # You should update example["text"] using your transformation
 
-    if typo:
-        example["text"] = typo_transform(example["text"], prob=0.25)
-    else:
-        example["text"] = synonym_replacement(example["text"], prob)
+    example["text"] = typo_transform(example["text"], prob)
+    example["text"] = synonym_replacement(example["text"], prob)
 
     ##### YOUR CODE ENDS HERE ######
 
