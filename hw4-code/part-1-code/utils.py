@@ -36,22 +36,25 @@ def example_transform(example):
 
 stop_words = set(stopwords.words("english"))
 
-def synonym_replacement(sentence, prob=0.2):
+def synonym_replacement(sentence, prob=0.5):
     words = word_tokenize(sentence)
     new_words = []
     for word in words:
         if word.lower() in stop_words or not word.isalpha():
             new_words.append(word)
             continue
-        # Randomly decide to replace
+        # Randomly decide to replace with much higher probability
         if random.random() < prob:
             synsets = wordnet.synsets(word)
             if synsets:
-                lemmas = synsets[0].lemmas()
-                synonyms = [lemma.name().replace('_', ' ') 
-                            for lemma in lemmas if lemma.name().lower() != word.lower()]
-                if synonyms:
-                    new_word = random.choice(synonyms)
+                # Try to get synonyms from multiple synsets for more variation
+                all_synonyms = []
+                for synset in synsets[:3]:  # Use first 3 synsets
+                    lemmas = synset.lemmas()
+                    all_synonyms.extend([lemma.name().replace('_', ' ') 
+                                for lemma in lemmas if lemma.name().lower() != word.lower()])
+                if all_synonyms:
+                    new_word = random.choice(all_synonyms)
                     new_words.append(new_word)
                     continue
         new_words.append(word)
@@ -86,21 +89,25 @@ keyboard_neighbors = {
     'z': ['a','s','x'],
 }
 
-def typo_transform(sentence, prob=0.2):
+def typo_transform(sentence, prob=0.25, typo_per_word=0.4):
     words = sentence.split()
     new_words = []
     for word in words:
-        if random.random() < prob:
+        if random.random() < prob and len(word) > 2:
             chars = list(word)
-            idx = random.randrange(len(chars))
-            c = chars[idx].lower()
-            if c in keyboard_neighbors:
-                chars[idx] = random.choice(keyboard_neighbors[c])
+            # Introduce multiple typos per word for stronger effect
+            num_typos = max(1, int(len(chars) * typo_per_word))
+            indices = random.sample(range(len(chars)), min(num_typos, len(chars)))
+            
+            for idx in indices:
+                c = chars[idx].lower()
+                if c in keyboard_neighbors:
+                    chars[idx] = random.choice(keyboard_neighbors[c])
             word = ''.join(chars)
         new_words.append(word)
     return ' '.join(new_words)
 
-def custom_transform(example, typo=True, prob=0.1):
+def custom_transform(example, typo=True, prob=0.5):
     ################################
     ##### YOUR CODE BEGINGS HERE ###
 
@@ -111,7 +118,7 @@ def custom_transform(example, typo=True, prob=0.1):
     # You should update example["text"] using your transformation
 
     if typo:
-        example["text"] = typo_transform(example["text"], prob)
+        example["text"] = typo_transform(example["text"], prob=0.25)
     else:
         example["text"] = synonym_replacement(example["text"], prob)
 
