@@ -61,7 +61,7 @@ def train(args, model, train_loader, dev_loader, optimizer, scheduler):
     args.checkpoint_dir = checkpoint_dir
     experiment_name = 'ft_experiment'
     gt_sql_path = os.path.join(f'data/dev.sql')
-    gt_record_path = os.path.join(f'records/dev_gt_records.pkl')
+    gt_record_path = os.path.join(f'records/ground_truth_dev.pkl')
     model_sql_path = os.path.join(f'results/t5_{model_type}_{experiment_name}_dev.sql')
     model_record_path = os.path.join(f'records/t5_{model_type}_{experiment_name}_dev.pkl')
     for epoch in range(args.max_n_epochs):
@@ -102,30 +102,28 @@ def train_epoch(args, model, train_loader, optimizer, scheduler):
     model.train()
     total_loss = 0
     total_tokens = 0
-    criterion = nn.CrossEntropyLoss()
 
-    for encoder_input, encoder_mask, decoder_input, decoder_targets, _ in tqdm(train_loader):
+    for encoder_input, encoder_mask, labels, _, _ in tqdm(train_loader):
         optimizer.zero_grad()
         encoder_input = encoder_input.to(DEVICE)
         encoder_mask = encoder_mask.to(DEVICE)
-        decoder_input = decoder_input.to(DEVICE)
-        decoder_targets = decoder_targets.to(DEVICE)
+        labels = labels.to(DEVICE)
 
-        logits = model(
+        outputs = model(
             input_ids=encoder_input,
             attention_mask=encoder_mask,
-            decoder_input_ids=decoder_input,
-        )['logits']
-
-        non_pad = decoder_targets != PAD_IDX
-        loss = criterion(logits[non_pad], decoder_targets[non_pad])
+            labels=labels,
+        )
+        
+        loss = outputs.loss
         loss.backward()
         optimizer.step()
         if scheduler is not None: 
             scheduler.step()
 
         with torch.no_grad():
-            num_tokens = torch.sum(non_pad).item()
+            # Count non-padding tokens
+            num_tokens = (labels != -100).sum().item()
             total_loss += loss.item() * num_tokens
             total_tokens += num_tokens
 
@@ -144,7 +142,6 @@ def eval_epoch(args, model, dev_loader, gt_sql_pth, model_sql_path, gt_record_pa
     model.eval()
     total_loss = 0
     total_tokens = 0
-    criterion = nn.CrossEntropyLoss()
     
     # For generation
     from transformers import T5TokenizerFast
@@ -152,28 +149,25 @@ def eval_epoch(args, model, dev_loader, gt_sql_pth, model_sql_path, gt_record_pa
     generated_queries = []
     
     with torch.no_grad():
-        for encoder_input, encoder_mask, decoder_input, decoder_targets, initial_decoder_inputs in tqdm(dev_loader):
+        for encoder_input, encoder_mask, labels, _, _ in tqdm(dev_loader):
             encoder_input = encoder_input.to(DEVICE)
             encoder_mask = encoder_mask.to(DEVICE)
-            decoder_input = decoder_input.to(DEVICE)
-            decoder_targets = decoder_targets.to(DEVICE)
+            labels = labels.to(DEVICE)
             
             # Compute loss
-            logits = model(
+            outputs = model(
                 input_ids=encoder_input,
                 attention_mask=encoder_mask,
-                decoder_input_ids=decoder_input,
-            )['logits']
+                labels=labels,
+            )
             
-            non_pad = decoder_targets != PAD_IDX
-            loss = criterion(logits[non_pad], decoder_targets[non_pad])
-            
-            num_tokens = torch.sum(non_pad).item()
+            loss = outputs.loss
+            num_tokens = (labels != -100).sum().item()
             total_loss += loss.item() * num_tokens
             total_tokens += num_tokens
             
             # Generate SQL queries
-            outputs = model.generate(
+            generated_outputs = model.generate(
                 input_ids=encoder_input,
                 attention_mask=encoder_mask,
                 max_length=512,
@@ -182,7 +176,7 @@ def eval_epoch(args, model, dev_loader, gt_sql_pth, model_sql_path, gt_record_pa
             )
             
             # Decode generated outputs
-            for output in outputs:
+            for output in generated_outputs:
                 decoded = tokenizer.decode(output, skip_special_tokens=True)
                 generated_queries.append(decoded)
     
@@ -215,7 +209,7 @@ def test_inference(args, model, test_loader, model_sql_path, model_record_path):
     generated_queries = []
     
     with torch.no_grad():
-        for encoder_input, encoder_mask, initial_decoder_inputs in tqdm(test_loader):
+        for encoder_input, encoder_mask, _ in tqdm(test_loader):
             encoder_input = encoder_input.to(DEVICE)
             encoder_mask = encoder_mask.to(DEVICE)
             
@@ -262,10 +256,10 @@ def main():
     gt_record_path = os.path.join(f'records/ground_truth_dev.pkl')
     model_sql_path = os.path.join(f'results/t5_{model_type}_{experiment_name}_dev.sql')
     model_record_path = os.path.join(f'records/t5_{model_type}_{experiment_name}_dev.pkl')
-    dev_loss, dev_record_em, dev_record_f1, dev_sql_em, dev_error_rate = eval_epoch(args, model, dev_loader,
+    dev_loss, dev_record_f1, dev_record_em, dev_sql_em, dev_error_rate = eval_epoch(args, model, dev_loader,
                                                                                     gt_sql_path, model_sql_path,
                                                                                     gt_record_path, model_record_path)
-    print("Dev set results: Loss: {dev_loss}, Record F1: {dev_record_f1}, Record EM: {dev_record_em}, SQL EM: {dev_sql_em}")
+    print(f"Dev set results: Loss: {dev_loss}, Record F1: {dev_record_f1}, Record EM: {dev_record_em}, SQL EM: {dev_sql_em}")
     print(f"Dev set results: {dev_error_rate*100:.2f}% of the generated outputs led to SQL errors")
 
     # Test set
