@@ -24,11 +24,30 @@ def initialize_model(args):
         # Load pretrained T5-small model for finetuning
         print("Initializing model for finetuning from 'google-t5/t5-small' checkpoint")
         model = T5ForConditionalGeneration.from_pretrained('google-t5/t5-small')
+        
+        # Optional: Freeze encoder to only train decoder
+        if args.freeze_encoder:
+            print("Freezing encoder parameters - only training decoder")
+            for param in model.encoder.parameters():
+                param.requires_grad = False
+        
+        # Optional: Freeze embeddings
+        if args.freeze_embeddings:
+            print("Freezing shared embeddings")
+            for param in model.shared.parameters():
+                param.requires_grad = False
+                
     else:
         # Initialize model from scratch with T5-small config
         print("Initializing model from scratch with 'google-t5/t5-small' config")
         config = T5Config.from_pretrained('google-t5/t5-small')
         model = T5ForConditionalGeneration(config)
+    
+    # Print parameter statistics
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total parameters: {total_params:,}")
+    print(f"Trainable parameters: {trainable_params:,} ({100*trainable_params/total_params:.1f}%)")
     
     model = model.to(DEVICE)
     return model

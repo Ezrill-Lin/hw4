@@ -37,29 +37,15 @@ class T5Dataset(Dataset):
         """
         Load and parse the database schema file provided in the assignment.
         
-        Given T5-small's 512 token limit, we use a compact schema representation:
-        just table names without full column lists. The model can still learn
-        table relationships and common column patterns from the training data.
-        
-        This is a practical trade-off between providing schema context and staying
-        within token limits.
+        We use a compact schema representation that includes table names AND 
+        their key columns. This is critical for the model to generate correct 
+        SQL queries with proper column references and joins.
         """
-        try:
-            with open(schema_path, 'r') as f:
-                schema_data = json.load(f)
-            
-            # Extract just table names - most compact representation
-            tables = []
-            if 'ents' in schema_data:
-                tables = list(schema_data['ents'].keys())
-            
-            # Create compact schema: just list table names
-            schema_str = "tables: " + ", ".join(tables)
-            return schema_str
-        except Exception as e:
-            print(f"Warning: Could not load schema file: {e}")
-            # Fallback to basic schema if file can't be loaded
-            return "tables: flight, airport, city, state, airline, fare"
+        # Import the compact schema that includes table columns
+        from schema_info import COMPACT_SCHEMA
+        
+        # Return the compact schema which includes table(column1, column2, ...)
+        return COMPACT_SCHEMA
 
     def process_data(self, data_folder, split, tokenizer):
         """
@@ -107,6 +93,9 @@ class T5Dataset(Dataset):
             assert len(nl_queries) == len(sql_queries), f"Mismatch in data sizes for {split}"
             
             for nl, sql in zip(nl_queries, sql_queries):
+                # Normalize SQL for consistent formatting
+                sql = normalize_sql(sql)
+                
                 # Construct input text with optional schema information
                 if schema_str:
                     # Add schema context to help model generate correct SQL
@@ -213,6 +202,32 @@ def load_lines(path):
         lines = f.readlines()
         lines = [line.strip() for line in lines]
     return lines
+
+def normalize_sql(sql):
+    """
+    Normalize SQL queries to have consistent formatting.
+    This helps the model learn more consistent patterns.
+    """
+    import re
+    
+    # Remove extra whitespace
+    sql = ' '.join(sql.split())
+    
+    # Normalize spacing around commas
+    sql = re.sub(r'\s*,\s*', ', ', sql)
+    
+    # Normalize spacing around parentheses
+    sql = re.sub(r'\(\s+', '(', sql)
+    sql = re.sub(r'\s+\)', ')', sql)
+    
+    # Normalize spacing around operators
+    sql = re.sub(r'\s*=\s*', ' = ', sql)
+    sql = re.sub(r'\s+AND\s+', ' AND ', sql)
+    sql = re.sub(r'\s+OR\s+', ' OR ', sql)
+    sql = re.sub(r'\s+WHERE\s+', ' WHERE ', sql)
+    sql = re.sub(r'\s+FROM\s+', ' FROM ', sql)
+    
+    return sql
 
 def load_prompting_data(data_folder):
     # Load training data (for few-shot examples)
