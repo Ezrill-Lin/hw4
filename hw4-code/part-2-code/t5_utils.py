@@ -49,7 +49,35 @@ def initialize_model(args):
     print(f"Total parameters: {total_params:,}")
     print(f"Trainable parameters: {trainable_params:,} ({100*trainable_params/total_params:.1f}%)")
     
-    model = model.to(DEVICE)
+    # Move to device with error handling
+    device_to_use = DEVICE
+    if device_to_use.type == 'cuda':
+        try:
+            print(f"Moving model to {device_to_use}...")
+            import gc
+            gc.collect()
+            torch.cuda.empty_cache()
+            model = model.to(device_to_use)
+            torch.cuda.synchronize()
+            print("Model successfully loaded to GPU")
+        except RuntimeError as e:
+            print(f"Warning: Failed to move model to GPU: {e}")
+            print("Attempting to clear CUDA cache and retry...")
+            torch.cuda.empty_cache()
+            gc.collect()
+            import time
+            time.sleep(2)
+            try:
+                model = model.to(device_to_use)
+                print("Model successfully loaded to GPU on second attempt")
+            except RuntimeError as e2:
+                print(f"Error: Could not move model to GPU: {e2}")
+                print("Falling back to CPU - training will be slower")
+                device_to_use = torch.device('cpu')
+                model = model.to(device_to_use)
+    else:
+        model = model.to(device_to_use)
+    
     return model
 
 def mkdir(dirpath):
