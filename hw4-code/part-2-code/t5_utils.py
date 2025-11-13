@@ -24,60 +24,13 @@ def initialize_model(args):
         # Load pretrained T5-small model for finetuning
         print("Initializing model for finetuning from 'google-t5/t5-small' checkpoint")
         model = T5ForConditionalGeneration.from_pretrained('google-t5/t5-small')
-        
-        # Optional: Freeze encoder to only train decoder
-        if args.freeze_encoder:
-            print("Freezing encoder parameters - only training decoder")
-            for param in model.encoder.parameters():
-                param.requires_grad = False
-        
-        # Optional: Freeze embeddings
-        if args.freeze_embeddings:
-            print("Freezing shared embeddings")
-            for param in model.shared.parameters():
-                param.requires_grad = False
-                
     else:
         # Initialize model from scratch with T5-small config
         print("Initializing model from scratch with 'google-t5/t5-small' config")
         config = T5Config.from_pretrained('google-t5/t5-small')
         model = T5ForConditionalGeneration(config)
     
-    # Print parameter statistics
-    total_params = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Total parameters: {total_params:,}")
-    print(f"Trainable parameters: {trainable_params:,} ({100*trainable_params/total_params:.1f}%)")
-    
-    # Move to device with error handling
-    device_to_use = DEVICE
-    if device_to_use.type == 'cuda':
-        try:
-            print(f"Moving model to {device_to_use}...")
-            import gc
-            gc.collect()
-            torch.cuda.empty_cache()
-            model = model.to(device_to_use)
-            torch.cuda.synchronize()
-            print("Model successfully loaded to GPU")
-        except RuntimeError as e:
-            print(f"Warning: Failed to move model to GPU: {e}")
-            print("Attempting to clear CUDA cache and retry...")
-            torch.cuda.empty_cache()
-            gc.collect()
-            import time
-            time.sleep(2)
-            try:
-                model = model.to(device_to_use)
-                print("Model successfully loaded to GPU on second attempt")
-            except RuntimeError as e2:
-                print(f"Error: Could not move model to GPU: {e2}")
-                print("Falling back to CPU - training will be slower")
-                device_to_use = torch.device('cpu')
-                model = model.to(device_to_use)
-    else:
-        model = model.to(device_to_use)
-    
+    model = model.to(DEVICE)
     return model
 
 def mkdir(dirpath):
@@ -109,7 +62,12 @@ def load_model_from_checkpoint(args, best):
     
     if best:
         checkpoint_path = os.path.join(checkpoint_dir, 'best_model.pt')
-        print(f"Loading best model from {checkpoint_path}")
+        # Fallback to last model if best doesn't exist
+        if not os.path.exists(checkpoint_path):
+            print(f"Warning: Best model not found at {checkpoint_path}, loading last model instead")
+            checkpoint_path = os.path.join(checkpoint_dir, 'last_model.pt')
+        else:
+            print(f"Loading best model from {checkpoint_path}")
     else:
         checkpoint_path = os.path.join(checkpoint_dir, 'last_model.pt')
         print(f"Loading last model from {checkpoint_path}")
