@@ -72,9 +72,10 @@ class T5Dataset(Dataset):
         if split == 'test':
             for nl in nl_queries:
                 # Construct input text with optional schema information
+                # Use clear separation between query and schema with newline-like separator
                 if schema_str:
-                    # Add schema context to help model generate correct SQL
-                    input_text = f"translate to SQL: {nl} | schema: {schema_str}"
+                    # Format with double delimiter for clear separation
+                    input_text = f'translate to SQL: {nl} || Schema: {schema_str}'
                 else:
                     input_text = f"translate to SQL: {nl}"
                     
@@ -97,9 +98,10 @@ class T5Dataset(Dataset):
                 sql = normalize_sql(sql)
                 
                 # Construct input text with optional schema information
+                # Use clear separation between query and schema with newline-like separator
                 if schema_str:
-                    # Add schema context to help model generate correct SQL
-                    input_text = f"translate to SQL: {nl} | schema: {schema_str}"
+                    # Format with double delimiter for clear separation
+                    input_text = f'translate to SQL: {nl} || Schema: {schema_str}'
                 else:
                     input_text = f"translate to SQL: {nl}"
                     
