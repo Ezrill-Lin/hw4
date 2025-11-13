@@ -6,6 +6,9 @@ SCHEMA_DESCRIPTION = """Tables: flight(flight_id, from_airport, to_airport, depa
 # Natural language schema format with quoted identifiers - reads like documentation
 COMPACT_SCHEMA = """Table "flight" has columns "flight_id", "from_airport", "to_airport", "departure_time", "arrival_time", "airline_code", "flight_days", "stops"; Table "airport_service" has columns "city_code", "airport_code"; Table "city" has columns "city_code", "city_name", "state_code"; Table "state" has columns "state_code", "state_name"; Table "airline" has columns "airline_code", "airline_name"; Table "flight_stop" has columns "flight_id", "stop_airport"; Table "fare" has columns "fare_id", "from_airport", "to_airport", "fare_airline", "one_direction_cost", "round_trip_cost", "round_trip_required"; Table "flight_fare" has columns "flight_id", "fare_id"; Table "fare_basis" has columns "fare_basis_code", "class_type"; Table "days" has columns "days_code", "day_name"; Table "date_day" has columns "month_number", "day_number", "year", "day_name"; Table "equipment_sequence" has columns "aircraft_code_sequence", "aircraft_code"; Table "aircraft" has columns "aircraft_code", "aircraft_description"; Table "food_service" has columns "meal_code", "meal_description"; Table "airport" has columns "airport_code", "airport_name"""
 
+# Very simple schema - just table names and key columns
+SIMPLE_SCHEMA = """flight(from_airport, to_airport, departure_time, arrival_time, airline_code, stops) | airport_service(city_code, airport_code) | city(city_code, city_name) | fare(from_airport, to_airport, round_trip_cost) | flight_fare(flight_id, fare_id) | date_day(month_number, day_number, year) | days(day_name)"""
+
 
 def add_schema_to_query(nl_query, use_compact=True):
     """Add schema information to natural language query."""

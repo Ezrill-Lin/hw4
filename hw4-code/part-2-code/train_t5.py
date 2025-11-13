@@ -34,9 +34,9 @@ def get_args():
                         help="Whether to use a LR scheduler and what type to use if so")
     parser.add_argument('--num_warmup_epochs', type=int, default=0,
                         help="How many epochs to warm up the learning rate for if using a scheduler")
-    parser.add_argument('--max_n_epochs', type=int, default=0,
+    parser.add_argument('--max_n_epochs', type=int, default=20,
                         help="How many epochs to train the model for")
-    parser.add_argument('--patience_epochs', type=int, default=0,
+    parser.add_argument('--patience_epochs', type=int, default=5,
                         help="If validation performance stops improving, how many epochs should we wait before stopping?")
 
     parser.add_argument('--use_wandb', action='store_true',
@@ -75,8 +75,8 @@ def train(args, model, train_loader, dev_loader, optimizer, scheduler):
             print(f"Epoch {epoch}: Running fast evaluation (loss only)...")
             eval_loss = eval_epoch_fast(args, model, dev_loader)
             print(f"Epoch {epoch}: Dev loss: {eval_loss}")
-            # Use negative loss as proxy for F1 for early stopping comparison
-            record_f1 = -eval_loss
+            # Don't update best_f1 or check early stopping until we start full eval
+            record_f1 = None
             record_em = 0
             sql_em = 0
             error_rate = 0
@@ -90,8 +90,8 @@ def train(args, model, train_loader, dev_loader, optimizer, scheduler):
             print(f"Epoch {epoch}: Running fast evaluation (loss only)...")
             eval_loss = eval_epoch_fast(args, model, dev_loader)
             print(f"Epoch {epoch}: Dev loss: {eval_loss}")
-            # Use negative loss as proxy for F1 for early stopping comparison
-            record_f1 = -eval_loss
+            # Don't update best_f1 or check early stopping on odd epochs
+            record_f1 = None
             record_em = 0
             sql_em = 0
             error_rate = 0
@@ -112,18 +112,21 @@ def train(args, model, train_loader, dev_loader, optimizer, scheduler):
                 })
             wandb.log(result_dict, step=epoch)
         
-        if record_f1 > best_f1:
-            best_f1 = record_f1
-            epochs_since_improvement = 0
-            # Save best model immediately when improvement occurs
-            save_model(checkpoint_dir, model, best=True)
-        else:
-            epochs_since_improvement += 1
+        # Only update best model and check early stopping when we have actual F1 scores
+        if record_f1 is not None:
+            if record_f1 > best_f1:
+                best_f1 = record_f1
+                epochs_since_improvement = 0
+                # Save best model immediately when improvement occurs
+                save_model(checkpoint_dir, model, best=True)
+            else:
+                epochs_since_improvement += 1
 
         # Always save last model
         save_model(checkpoint_dir, model, best=False)
 
-        if epochs_since_improvement >= args.patience_epochs:
+        # Only check early stopping when we have F1 scores (even epochs >= 10)
+        if record_f1 is not None and epochs_since_improvement >= args.patience_epochs:
             break
 
 def train_epoch(args, model, train_loader, optimizer, scheduler):
@@ -327,7 +330,7 @@ def main():
     dev_loss, dev_record_em, dev_record_f1, dev_sql_em, dev_error_rate = eval_epoch(args, model, dev_loader,
                                                                                     gt_sql_path, model_sql_path,
                                                                                     gt_record_path, model_record_path)
-    print("Dev set results: Loss: {dev_loss}, Record F1: {dev_record_f1}, Record EM: {dev_record_em}, SQL EM: {dev_sql_em}")
+    print(f"Dev set results: Loss: {dev_loss}, Record F1: {dev_record_f1}, Record EM: {dev_record_em}, SQL EM: {dev_sql_em}")
     print(f"Dev set results: {dev_error_rate*100:.2f}% of the generated outputs led to SQL errors")
 
     # Test set
