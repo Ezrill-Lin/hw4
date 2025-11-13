@@ -39,8 +39,8 @@ class T5Dataset(Dataset):
         # Load schema if enabled
         schema_prefix = ""
         if self.use_schema:
-            from schema_info import SIMPLE_SCHEMA
-            schema_prefix = SIMPLE_SCHEMA + " | "
+            from schema_info import COMPACT_SCHEMA
+            schema_prefix = COMPACT_SCHEMA + " | "
         
         processed_data = []
         
