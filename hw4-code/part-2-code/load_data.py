@@ -15,7 +15,7 @@ PAD_IDX = 0
 
 class T5Dataset(Dataset):
 
-    def __init__(self, data_folder, split):
+    def __init__(self, data_folder, split, use_schema=False):
         '''
         Skeleton for the class for performing data processing for the T5 model.
 
@@ -27,6 +27,7 @@ class T5Dataset(Dataset):
             * Class behavior should be different on the test set.
         '''
         self.split = split
+        self.use_schema = use_schema
         self.tokenizer = T5TokenizerFast.from_pretrained('google-t5/t5-small')
         self.data = self.process_data(data_folder, split, self.tokenizer)
 
@@ -35,13 +36,22 @@ class T5Dataset(Dataset):
         nl_path = os.path.join(data_folder, f'{split}.nl')
         nl_queries = load_lines(nl_path)
         
+        # Load schema if enabled
+        schema_prefix = ""
+        if self.use_schema:
+            from schema_info import COMPACT_SCHEMA
+            schema_prefix = COMPACT_SCHEMA + " | "
+        
         processed_data = []
         
         # For test set, we don't have SQL queries
         if split == 'test':
             for nl in nl_queries:
+                # Add schema prefix if enabled
+                input_text = schema_prefix + nl
+                
                 # Tokenize the natural language input
-                encoder_inputs = tokenizer(nl, return_tensors='pt', add_special_tokens=True)
+                encoder_inputs = tokenizer(input_text, return_tensors='pt', add_special_tokens=True)
                 encoder_input_ids = encoder_inputs['input_ids'].squeeze(0)
                 
                 # Use extra_id_0 as the beginning of sentence token for decoder
@@ -59,8 +69,11 @@ class T5Dataset(Dataset):
             assert len(nl_queries) == len(sql_queries), f"Mismatch in data sizes for {split}"
             
             for nl, sql in zip(nl_queries, sql_queries):
+                # Add schema prefix if enabled
+                input_text = schema_prefix + nl
+                
                 # Tokenize the natural language input
-                encoder_inputs = tokenizer(nl, return_tensors='pt', add_special_tokens=True)
+                encoder_inputs = tokenizer(input_text, return_tensors='pt', add_special_tokens=True)
                 encoder_input_ids = encoder_inputs['input_ids'].squeeze(0)
                 
                 # Tokenize the SQL output
@@ -155,19 +168,19 @@ def test_collate_fn(batch):
     
     return encoder_ids, encoder_mask, initial_decoder_inputs
 
-def get_dataloader(batch_size, split):
+def get_dataloader(batch_size, split, use_schema=False):
     data_folder = 'data'
-    dset = T5Dataset(data_folder, split)
+    dset = T5Dataset(data_folder, split, use_schema=use_schema)
     shuffle = split == "train"
     collate_fn = normal_collate_fn if split != "test" else test_collate_fn
 
     dataloader = DataLoader(dset, batch_size=batch_size, shuffle=shuffle, collate_fn=collate_fn)
     return dataloader
 
-def load_t5_data(batch_size, test_batch_size):
-    train_loader = get_dataloader(batch_size, "train")
-    dev_loader = get_dataloader(test_batch_size, "dev")
-    test_loader = get_dataloader(test_batch_size, "test")
+def load_t5_data(batch_size, test_batch_size, use_schema=False):
+    train_loader = get_dataloader(batch_size, "train", use_schema=use_schema)
+    dev_loader = get_dataloader(test_batch_size, "dev", use_schema=use_schema)
+    test_loader = get_dataloader(test_batch_size, "test", use_schema=use_schema)
     
     return train_loader, dev_loader, test_loader
 

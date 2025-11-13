@@ -47,6 +47,8 @@ def get_args():
     # Data hyperparameters
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--test_batch_size', type=int, default=16)
+    parser.add_argument('--use_schema', action='store_true',
+                        help="If set, prepend database schema to input queries")
 
     args = parser.parse_args()
     return args
@@ -68,8 +70,8 @@ def train(args, model, train_loader, dev_loader, optimizer, scheduler):
         tr_loss = train_epoch(args, model, train_loader, optimizer, scheduler)
         print(f"Epoch {epoch}: Average train loss was {tr_loss}")
 
-        # Use fast eval (loss only) until epoch 15, then do full eval with SQL execution
-        if epoch < 15:
+        # Use fast eval (loss only) until epoch 10, then do full eval with SQL execution every 2 epochs
+        if epoch < 10:
             print(f"Epoch {epoch}: Running fast evaluation (loss only)...")
             eval_loss = eval_epoch_fast(args, model, dev_loader)
             print(f"Epoch {epoch}: Dev loss: {eval_loss}")
@@ -78,12 +80,21 @@ def train(args, model, train_loader, dev_loader, optimizer, scheduler):
             record_em = 0
             sql_em = 0
             error_rate = 0
-        else:
+        elif epoch % 2 == 0:  # Every 2 epochs starting from epoch 10
             eval_loss, record_f1, record_em, sql_em, error_rate = eval_epoch(args, model, dev_loader,
                                                                              gt_sql_path, model_sql_path,
                                                                              gt_record_path, model_record_path)
             print(f"Epoch {epoch}: Dev loss: {eval_loss}, Record F1: {record_f1}, Record EM: {record_em}, SQL EM: {sql_em}")
             print(f"Epoch {epoch}: {error_rate*100:.2f}% of the generated outputs led to SQL errors")
+        else:
+            print(f"Epoch {epoch}: Running fast evaluation (loss only)...")
+            eval_loss = eval_epoch_fast(args, model, dev_loader)
+            print(f"Epoch {epoch}: Dev loss: {eval_loss}")
+            # Use negative loss as proxy for F1 for early stopping comparison
+            record_f1 = -eval_loss
+            record_em = 0
+            sql_em = 0
+            error_rate = 0
 
         
         if args.use_wandb:
@@ -91,8 +102,8 @@ def train(args, model, train_loader, dev_loader, optimizer, scheduler):
                 'train/loss' : tr_loss,
                 'dev/loss' : eval_loss,
             }
-            # Only log SQL metrics when doing full eval (epoch >= 15)
-            if epoch >= 15:
+            # Only log SQL metrics when doing full eval (epoch >= 10 and epoch % 2 == 0)
+            if epoch >= 10 and epoch % 2 == 0:
                 result_dict.update({
                     'dev/record_f1' : record_f1,
                     'dev/record_em' : record_em,
@@ -295,7 +306,7 @@ def main():
         setup_wandb(args)
 
     # Load the data and the model
-    train_loader, dev_loader, test_loader = load_t5_data(args.batch_size, args.test_batch_size)
+    train_loader, dev_loader, test_loader = load_t5_data(args.batch_size, args.test_batch_size, use_schema=args.use_schema)
     model = initialize_model(args)
     optimizer, scheduler = initialize_optimizer_and_scheduler(args, model, len(train_loader))
 
