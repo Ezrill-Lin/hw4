@@ -6,6 +6,9 @@ hw4-code/part-1-code/out_augmented/
 *.pt
 *.pth
 
+# Submission folder
+submission/
+
 # Python
 __pycache__/
 *.py[cod]
