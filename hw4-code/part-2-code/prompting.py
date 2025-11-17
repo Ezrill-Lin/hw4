@@ -99,8 +99,8 @@ def exp_kshot(tokenizer, model, inputs, k, train_x=None, train_y=None):
     raw_outputs = []
     extracted_queries = []
     
-    # Read simplified schema
-    schema_path = 'data/simplified_schema.txt'
+    # Read compact schema
+    schema_path = 'data/compact_schema.txt'
     if os.path.exists(schema_path):
         with open(schema_path, 'r') as f:
             schema_text = f.read().strip()

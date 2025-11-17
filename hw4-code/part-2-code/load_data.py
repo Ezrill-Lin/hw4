@@ -31,8 +31,8 @@ class T5Dataset(Dataset):
         self.encoder_inputs, self.decoder_inputs, self.decoder_targets = self.process_data(data_folder, split, self.tokenizer)
 
     def process_data(self, data_folder, split, tokenizer):
-        # Load database schema
-        schema_path = os.path.join(data_folder, 'simplified_schema.txt')
+        # Load database schema - use COMPACT version to avoid overwhelming the input
+        schema_path = os.path.join(data_folder, 'compact_schema.txt')
         if os.path.exists(schema_path):
             with open(schema_path, 'r') as f:
                 schema = f.read().strip()
@@ -47,8 +47,11 @@ class T5Dataset(Dataset):
         # Tokenize encoder inputs (natural language queries)
         encoder_inputs = []
         for query in nl_queries:
-            # Build input with schema
-            input_text = f"Tables:\n{schema}\n\nQuestion:\n{query}\n\nAnswer:\n"
+            # Build input with compact schema
+            if schema:
+                input_text = f"Tables:\n{schema}\n\nQuestion:\n{query}\n\nAnswer:\n"
+            else:
+                input_text = f"translate English to SQL: {query}"
             encoder_input = tokenizer(input_text, return_tensors='pt', add_special_tokens=True)
             encoder_inputs.append(encoder_input['input_ids'].squeeze(0))
         
