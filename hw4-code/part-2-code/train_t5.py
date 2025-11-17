@@ -240,8 +240,24 @@ def main():
         # Recommended: Using wandb (or tensorboard) for result logging can make experimentation easier
         setup_wandb(args)
 
-    # Load the data and the model
+    # Display schema information
+    print("\n" + "="*80)
+    print("SCHEMA IN USE")
+    print("="*80)
+    
+    # Load the data first to see what schema is actually being used
     train_loader, dev_loader, test_loader = load_t5_data(args.batch_size, args.test_batch_size)
+    
+    # Get a sample and decode it to show the actual input
+    sample = train_loader.dataset[0]
+    from transformers import T5TokenizerFast
+    tokenizer = T5TokenizerFast.from_pretrained('google-t5/t5-small')
+    decoded_input = tokenizer.decode(sample['encoder_input'], skip_special_tokens=True)
+    print(f"Sample training input ({len(sample['encoder_input'])} tokens):")
+    print(decoded_input[:500] + "..." if len(decoded_input) > 500 else decoded_input)
+    print("="*80 + "\n")
+
+    # Load the data and the model
     model = initialize_model(args)
     optimizer, scheduler = initialize_optimizer_and_scheduler(args, model, len(train_loader))
 
