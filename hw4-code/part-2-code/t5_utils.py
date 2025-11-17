@@ -27,9 +27,15 @@ def initialize_model(args):
     if args.finetune:
         # Load pretrained T5-small model for fine-tuning
         model = T5ForConditionalGeneration.from_pretrained('google-t5/t5-small')
+        # Extend max position embeddings to handle longer sequences with schema
+        model.config.n_positions = 2048
+        model.config.max_length = 2048
     else:
         # Initialize T5 model from scratch with T5-small config
         config = T5Config.from_pretrained('google-t5/t5-small')
+        # Extend max position embeddings for longer sequences
+        config.n_positions = 2048
+        config.max_length = 2048
         model = T5ForConditionalGeneration(config)
     
     model = model.to(DEVICE)
