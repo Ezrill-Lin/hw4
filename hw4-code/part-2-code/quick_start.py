@@ -32,7 +32,7 @@ def main():
     # Small T5 fine-tuning experiment
     print("\n2. Running small T5 fine-tuning experiment (2 epochs)...")
     run_command(
-        "python train_t5.py --finetune --batch_size 8 --test_batch_size 8 "
+        "python train_t5.py --finetune --batch_size 16 --test_batch_size 16 "
         "--learning_rate 1e-4 --max_n_epochs 2 --patience_epochs 2 "
         "--scheduler_type cosine --num_warmup_epochs 0 "
         "--experiment_name quick_test",
