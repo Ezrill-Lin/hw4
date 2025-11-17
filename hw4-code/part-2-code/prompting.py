@@ -57,14 +57,11 @@ def create_prompt(sentence, k, schema_text="", train_examples_x=None, train_exam
         * train_examples_y (list): Training SQL queries for few-shot
     '''
     # Build the prompt
-    prompt = "You are an expert in converting natural language queries to SQL.\n\n"
+    prompt = ""
     
-    # Add schema information (simplified - can include first part of schema)
+    # Add schema information
     if schema_text:
-        # Use a simplified version of the schema to avoid token limits
-        prompt += "Database Schema Information:\n"
-        prompt += "The database contains tables about flights, airports, airlines, cities, fares, etc.\n"
-        prompt += "Key tables: flight, airport, airline, city, fare, flight_fare, airport_service\n\n"
+        prompt += f"Tables:\n{schema_text}\n\n"
     
     # Add few-shot examples if k > 0
     if k > 0 and train_examples_x and train_examples_y:
@@ -75,13 +72,11 @@ def create_prompt(sentence, k, schema_text="", train_examples_x=None, train_exam
         
         for i, idx in enumerate(indices, 1):
             prompt += f"Example {i}:\n"
-            prompt += f"Natural Language: {train_examples_x[idx]}\n"
-            prompt += f"SQL: {train_examples_y[idx]}\n\n"
+            prompt += f"Question: {train_examples_x[idx]}\n"
+            prompt += f"Answer: {train_examples_y[idx]}\n\n"
     
     # Add the actual query
-    prompt += "Now convert this natural language query to SQL:\n"
-    prompt += f"Natural Language: {sentence}\n"
-    prompt += "SQL:"
+    prompt += f"Question:\n{sentence}\n\nAnswer:\n"
     
     return prompt
 
@@ -104,8 +99,13 @@ def exp_kshot(tokenizer, model, inputs, k, train_x=None, train_y=None):
     raw_outputs = []
     extracted_queries = []
     
-    # Read schema
-    schema_text = read_schema(SCHEMA_PATH) if os.path.exists(SCHEMA_PATH) else ""
+    # Read simplified schema
+    schema_path = 'data/simplified_schema.txt'
+    if os.path.exists(schema_path):
+        with open(schema_path, 'r') as f:
+            schema_text = f.read().strip()
+    else:
+        schema_text = ""
 
     for i, sentence in tqdm(enumerate(inputs)):
         prompt = create_prompt(sentence, k, schema_text, train_x, train_y) # Looking at the prompt may also help

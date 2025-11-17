@@ -1,0 +1,173 @@
+CREATE TABLE aircraft (
+  aircraft_code VARCHAR,
+  aircraft_description VARCHAR,
+  manufacturer VARCHAR,
+  basic_type VARCHAR,
+  propulsion VARCHAR,
+  wide_body VARCHAR,
+  pressurized VARCHAR
+);
+
+CREATE TABLE airline (
+  airline_code VARCHAR,
+  airline_name VARCHAR,
+  note VARCHAR
+);
+
+CREATE TABLE airport (
+  airport_code VARCHAR,
+  airport_name VARCHAR,
+  airport_location VARCHAR,
+  state_code VARCHAR,
+  country_name VARCHAR,
+  time_zone_code VARCHAR,
+  minimum_connect_time INTEGER
+);
+
+CREATE TABLE airport_service (
+  city_code VARCHAR,
+  airport_code VARCHAR,
+  miles_distant INTEGER,
+  direction VARCHAR,
+  minutes_distant INTEGER
+);
+
+CREATE TABLE city (
+  city_code VARCHAR,
+  city_name VARCHAR,
+  state_code VARCHAR,
+  country_name VARCHAR,
+  time_zone_code VARCHAR
+);
+
+CREATE TABLE class_of_service (
+  booking_class VARCHAR,
+  rank INTEGER,
+  class_description VARCHAR
+);
+
+CREATE TABLE date_day (
+  month_number INTEGER,
+  day_number INTEGER,
+  year INTEGER,
+  day_name VARCHAR
+);
+
+CREATE TABLE days (
+  days_code VARCHAR,
+  day_name VARCHAR
+);
+
+CREATE TABLE equipment_sequence (
+  aircraft_code_sequence VARCHAR,
+  aircraft_code VARCHAR
+);
+
+CREATE TABLE fare (
+  fare_id INTEGER,
+  from_airport VARCHAR,
+  to_airport VARCHAR,
+  fare_basis_code VARCHAR,
+  fare_airline VARCHAR,
+  restriction_code VARCHAR,
+  one_direction_cost INTEGER,
+  round_trip_cost INTEGER,
+  round_trip_required VARCHAR
+);
+
+CREATE TABLE fare_basis (
+  fare_basis_code VARCHAR,
+  booking_class VARCHAR,
+  class_type VARCHAR,
+  premium VARCHAR,
+  economy VARCHAR,
+  discounted VARCHAR,
+  night VARCHAR,
+  season VARCHAR,
+  basis_days VARCHAR
+);
+
+CREATE TABLE flight (
+  flight_id INTEGER,
+  flight_days VARCHAR,
+  from_airport VARCHAR,
+  to_airport VARCHAR,
+  departure_time INTEGER,
+  arrival_time INTEGER,
+  airline_code VARCHAR,
+  airline_flight VARCHAR,
+  flight_number INTEGER,
+  aircraft_code_sequence VARCHAR,
+  meal_code VARCHAR,
+  stops INTEGER,
+  dual_carrier VARCHAR,
+  time_elapsed INTEGER
+);
+
+CREATE TABLE flight_fare (
+  flight_id INTEGER,
+  fare_id INTEGER
+);
+
+CREATE TABLE flight_leg (
+  flight_id INTEGER,
+  leg_number INTEGER,
+  leg_flight INTEGER
+);
+
+CREATE TABLE flight_stop (
+  flight_id INTEGER,
+  stop_number INTEGER,
+  stop_days VARCHAR,
+  stop_airport VARCHAR,
+  arrival_time INTEGER,
+  arrival_airline VARCHAR,
+  arrival_flight_number INTEGER,
+  departure_time INTEGER,
+  departure_airline VARCHAR,
+  departure_flight_number INTEGER,
+  stop_time INTEGER
+);
+
+CREATE TABLE food_service (
+  meal_code VARCHAR,
+  meal_number INTEGER,
+  compartment VARCHAR,
+  meal_description VARCHAR
+);
+
+CREATE TABLE ground_service (
+  city_code VARCHAR,
+  airport_code VARCHAR,
+  transport_type VARCHAR,
+  ground_fare INTEGER
+);
+
+CREATE TABLE restriction (
+  restriction_code VARCHAR,
+  advance_purchase INTEGER,
+  stopovers VARCHAR,
+  saturday_stay_required VARCHAR,
+  minimum_stay INTEGER,
+  maximum_stay INTEGER,
+  application VARCHAR,
+  no_discounts VARCHAR
+);
+
+CREATE TABLE state (
+  state_code VARCHAR,
+  state_name VARCHAR,
+  country_name VARCHAR
+);
+
+CREATE TABLE time_interval (
+  period VARCHAR,
+  begin_time INTEGER,
+  end_time INTEGER
+);
+
+CREATE TABLE time_zone (
+  time_zone_code VARCHAR,
+  time_zone_name VARCHAR,
+  hours_from_gmt INTEGER
+);
