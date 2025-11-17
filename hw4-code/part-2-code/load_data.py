@@ -36,8 +36,6 @@ class T5Dataset(Dataset):
         if os.path.exists(schema_path):
             with open(schema_path, 'r') as f:
                 schema = f.read().strip()
-        else:
-            schema = ""
         
         # Load natural language queries
         nl_path = os.path.join(data_folder, f'{split}.nl')
@@ -48,10 +46,7 @@ class T5Dataset(Dataset):
         encoder_inputs = []
         for query in nl_queries:
             # Build input with schema
-            if schema:
-                input_text = f"Tables:\n{schema}\n\nQuestion:\n{query}\n\nAnswer:\n"
-            else:
-                input_text = f"translate English to SQL: {query}"
+            input_text = f"Tables:\n{schema}\n\nQuestion:\n{query}\n\nAnswer:\n"
             encoder_input = tokenizer(input_text, return_tensors='pt', add_special_tokens=True)
             encoder_inputs.append(encoder_input['input_ids'].squeeze(0))
         
