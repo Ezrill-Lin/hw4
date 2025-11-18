@@ -69,35 +69,30 @@ def train(args, model, train_loader, dev_loader, optimizer, scheduler):
         tr_loss = train_epoch(args, model, train_loader, optimizer, scheduler)
         print(f"Epoch {epoch}: Average train loss was {tr_loss}")
 
-        eval_loss, record_f1, record_em, sql_em, error_rate = eval_epoch(args, model, dev_loader,
+        print(f"Epoch {epoch}: Starting evaluation...")
+        if epoch % 4 == 0:
+            eval_loss, record_f1, record_em, sql_em, error_rate = eval_epoch(args, model, dev_loader,
                                                                          gt_sql_path, model_sql_path,
                                                                          gt_record_path, model_record_path)
-        print(f"Epoch {epoch}: Dev loss: {eval_loss}, Record F1: {record_f1}, Record EM: {record_em}, SQL EM: {sql_em}")
-        print(f"Epoch {epoch}: {error_rate*100:.2f}% of the generated outputs led to SQL errors")
+            print(f"Epoch {epoch}: Dev loss: {eval_loss}, Record F1: {record_f1}, Record EM: {record_em}, SQL EM: {sql_em}")
+            print(f"Epoch {epoch}: {error_rate*100:.2f}% of the generated outputs led to SQL errors")
 
-        if args.use_wandb:
-            result_dict = {
-                'train/loss' : tr_loss,
-                'dev/loss' : eval_loss,
-                'dev/record_f1' : record_f1,
-                'dev/record_em' : record_em,
-                'dev/sql_em' : sql_em,
-                'dev/error_rate' : error_rate,
-            }
-            wandb.log(result_dict, step=epoch)
+            if record_f1 > best_f1:
+                best_f1 = record_f1
+                epochs_since_improvement = 0
+                save_model(checkpoint_dir, model, best=True)
+            else:
+                epochs_since_improvement += 1
+            
+            if epochs_since_improvement >= args.patience_epochs:
+                break
 
-        if record_f1 > best_f1:
-            best_f1 = record_f1
-            epochs_since_improvement = 0
         else:
-            epochs_since_improvement += 1
-
+            eval_loss = eval_fast(args, model, dev_loader)
+            record_f1, record_em, sql_em, error_rate = -1, -1, -1, -1
+            print(f"Epoch {epoch}: Dev loss: {eval_loss}")
+        
         save_model(checkpoint_dir, model, best=False)
-        if epochs_since_improvement == 0:
-            save_model(checkpoint_dir, model, best=True)
-
-        if epochs_since_improvement >= args.patience_epochs:
-            break
 
 def train_epoch(args, model, train_loader, optimizer, scheduler):
     model.train()
@@ -200,6 +195,37 @@ def eval_epoch(args, model, dev_loader, gt_sql_pth, model_sql_path, gt_record_pa
     
     return avg_loss, record_f1, record_em, sql_em, error_rate
         
+def eval_fast(args, model, dev_loader):
+    '''
+    A faster evaluation function that only computes loss on the dev set without generation.
+    Useful for hyperparameter tuning when compute is limited
+    '''
+    model.eval()
+    total_loss = 0
+    total_tokens = 0
+    criterion = nn.CrossEntropyLoss()
+
+    with torch.no_grad():
+        for encoder_input, encoder_mask, decoder_input, decoder_targets, _ in tqdm(dev_loader):
+            encoder_input = encoder_input.to(DEVICE)
+            encoder_mask = encoder_mask.to(DEVICE)
+            decoder_input = decoder_input.to(DEVICE)
+            decoder_targets = decoder_targets.to(DEVICE)
+
+            logits = model(
+                input_ids=encoder_input,
+                attention_mask=encoder_mask,
+                decoder_input_ids=decoder_input,
+            )['logits']
+
+            non_pad = decoder_targets != PAD_IDX
+            loss = criterion(logits[non_pad], decoder_targets[non_pad])
+
+            num_tokens = torch.sum(non_pad).item()
+            total_loss += loss.item() * num_tokens
+            total_tokens += num_tokens
+    return total_loss / total_tokens
+
 def test_inference(args, model, test_loader, model_sql_path, model_record_path):
     '''
     You must implement inference to compute your model's generated SQL queries and its associated 
