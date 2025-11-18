@@ -70,7 +70,7 @@ def train(args, model, train_loader, dev_loader, optimizer, scheduler):
         print(f"Epoch {epoch}: Average train loss was {tr_loss}")
 
         print(f"Epoch {epoch}: Starting evaluation...")
-        if epoch % 4 == 0:
+        if epoch % 5 == 0:
             eval_loss, record_f1, record_em, sql_em, error_rate = eval_epoch(args, model, dev_loader,
                                                                          gt_sql_path, model_sql_path,
                                                                          gt_record_path, model_record_path)
