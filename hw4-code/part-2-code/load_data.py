@@ -11,6 +11,8 @@ nltk.download('punkt')
 from transformers import T5TokenizerFast
 import torch
 
+from schema_utils import load_full_schema, get_query_specific_schema
+
 PAD_IDX = 0
 
 class T5Dataset(Dataset):
@@ -33,31 +35,38 @@ class T5Dataset(Dataset):
     def process_data(self, data_folder, split, tokenizer):
         # Load database schema
         schema_path = os.path.join(data_folder, 'simplified_schema.txt')
+        schema_dict = None
         if os.path.exists(schema_path):
-            with open(schema_path, 'r') as f:
-                schema = f.read().strip()
+            schema_dict = load_full_schema(schema_path)
         
         # Load natural language queries
         nl_path = os.path.join(data_folder, f'{split}.nl')
         with open(nl_path, 'r') as f:
             nl_queries = [line.strip() for line in f.readlines()]
         
-        # Tokenize encoder inputs (natural language queries)
+        # Load SQL queries (if not test set)
+        sql_queries = None
+        if split != 'test':
+            sql_path = os.path.join(data_folder, f'{split}.sql')
+            with open(sql_path, 'r') as f:
+                sql_queries = [line.strip() for line in f.readlines()]
+        
+        # Tokenize encoder inputs (natural language queries with query-specific schema)
         encoder_inputs = []
-        for query in nl_queries:
-            # Build input with schema
-            input_text = f"Tables:\n{schema}\n\nQuestion:\n{query}\n\nAnswer:\n"
+        for nl_query in nl_queries:
+            if schema_dict:
+                query_schema = get_query_specific_schema(nl_query, schema_dict)
+                input_text = f"Tables: {query_schema} Question: {nl_query} Answer:"
+            else:
+                # No schema fallback
+                input_text = f"translate to SQL: {nl_query}"
+            
             encoder_input = tokenizer(input_text, return_tensors='pt', add_special_tokens=True)
             encoder_inputs.append(encoder_input['input_ids'].squeeze(0))
         
         # For test set, we don't have SQL targets
         if split == 'test':
             return encoder_inputs, None, None
-        
-        # Load SQL queries
-        sql_path = os.path.join(data_folder, f'{split}.sql')
-        with open(sql_path, 'r') as f:
-            sql_queries = [line.strip() for line in f.readlines()]
         
         # Tokenize decoder inputs and targets
         decoder_inputs = []

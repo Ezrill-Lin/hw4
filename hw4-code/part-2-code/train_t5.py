@@ -38,6 +38,8 @@ def get_args():
                         help="How many epochs to train the model for")
     parser.add_argument('--patience_epochs', type=int, default=0,
                         help="If validation performance stops improving, how many epochs should we wait before stopping?")
+    parser.add_argument('--num_eval_gaps', type=int, default=4,
+                        help="How many epochs between full evaluations (with generation). Fast eval runs on other epochs.")
 
     parser.add_argument('--use_wandb', action='store_true',
                         help="If set, we will use wandb to keep track of experiments")
@@ -70,7 +72,7 @@ def train(args, model, train_loader, dev_loader, optimizer, scheduler):
         print(f"Epoch {epoch}: Average train loss was {tr_loss}")
 
         print(f"Epoch {epoch}: Starting evaluation...")
-        if epoch % 5 == 0:
+        if epoch % args.num_eval_gaps == 0:
             eval_loss, record_f1, record_em, sql_em, error_rate = eval_epoch(args, model, dev_loader,
                                                                          gt_sql_path, model_sql_path,
                                                                          gt_record_path, model_record_path)
