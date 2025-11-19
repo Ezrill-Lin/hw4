@@ -72,7 +72,14 @@ def train(args, model, train_loader, dev_loader, optimizer, scheduler):
         print(f"Epoch {epoch}: Average train loss was {tr_loss}")
 
         print(f"Epoch {epoch}: Starting evaluation...")
-        if epoch % args.num_eval_gaps == 0:
+        # Conditional full eval: finetune >= 10 epochs, from scratch >= 40 epochs
+        do_full_eval = epoch % args.num_eval_gaps == 0
+        if args.finetune:
+            do_full_eval = do_full_eval and epoch >= 10
+        else:
+            do_full_eval = do_full_eval and epoch >= 40
+        
+        if do_full_eval:
             eval_loss, record_f1, record_em, sql_em, error_rate = eval_epoch(args, model, dev_loader,
                                                                          gt_sql_path, model_sql_path,
                                                                          gt_record_path, model_record_path)
@@ -287,7 +294,7 @@ def main():
     gt_record_path = os.path.join(f'records/ground_truth_dev.pkl')
     model_sql_path = os.path.join(f'results/t5_{model_type}_{experiment_name}_dev.sql')
     model_record_path = os.path.join(f'records/t5_{model_type}_{experiment_name}_dev.pkl')
-    dev_loss, dev_record_em, dev_record_f1, dev_sql_em, dev_error_rate = eval_epoch(args, model, dev_loader,
+    dev_loss, dev_record_f1, dev_record_em, dev_sql_em, dev_error_rate = eval_epoch(args, model, dev_loader,
                                                                                     gt_sql_path, model_sql_path,
                                                                                     gt_record_path, model_record_path)
     print(f"Dev set results: Loss: {dev_loss}, Record F1: {dev_record_f1}, Record EM: {dev_record_em}, SQL EM: {dev_sql_em}")
