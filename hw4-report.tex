@@ -4,7 +4,7 @@
 
 \title{DSGA 1011: Assignment 4}
 
-\author{Full Name \\ Net ID}
+\author{Xinran Lin \\ xl3680}
 
 \date{}
 
@@ -14,19 +14,85 @@
 \maketitle
 % \section*{Part I. Q1} No written element, submit \texttt{out\_original.txt}  to autograder.
 \section*{Q0. 1.}
-Please provide a link to your github repository, which contains the code for both Part I and Part II. \textcolor{gray}{TODO}
+% Please provide a link to your github repository, which contains the code for both Part I and Part II.
+\textcolor{gray}{https://github.com/Ezrill-Lin/hw4}
 \section*{Q2. 1.}
-Describe your transformation of dataset.
-\textcolor{gray}{TODO}
+% Describe your transformation of dataset.
+% \textcolor{gray}{TODO} 
+
+I implemented 2 transformations: synonym replacement and typo introduction, and combined them in the ``custom\_transform" function. 
+\begin{itemize}[leftmargin=1em]
+    \item \textbf{Synonym replacement:}\\
+    This transformation randomly replaces some words in a review with their synonyms obtained from WordNet, while keeping the overall sentence meaning intact.\\ 
+    For each sentence:
+    \begin{enumerate}
+        \item Tokenize the text into words.
+        \item Skip stopwords (e.g., “the”, “is”) and non-alphabetic tokens.
+        \item With probability p (default 0.2), select a word for replacement.
+        \item Retrieve up to the first three synsets (sets of synonyms) from WordNet.
+        \item Aggregate all lemma names from those synsets, excluding the original word.
+        \item Randomly select one synonym from this pool and replace the original token.
+        \item Reconstruct the modified sentence.
+    \end{enumerate}
+    Why reasonable:\\
+    Synonyms enlarge the variation of vocabulary, and maintain the same sentiment polarity and grammatical structure. Therefore, using synonyms lets the model focus more on the semantics and grammatical structure of the sentence rather than memorizing. Also, in reality, reviewers naturally use a wide range of synonymous words (e.g., “film”, “movie”, “picture”).\\
+    
+    \item \textbf{Typo introduction:}\\
+    This transformation introduces character-level noise by replacing letters with adjacent keys on a QWERTY keyboard, imitating natural typing mistakes. \\
+    For each word in the sentence:
+    \begin{enumerate}
+        \item With a probability p (default 0.2), choose a word for modification.
+        \item Determine how many letters to corrupt (a fraction of word length, default 20\%).
+        \item Randomly pick letter indices to modify.
+        \item For each chosen character, if it exists in the keyboard\_neighbors map (e.g., 'h' → ['g','y','u','j','n','b']), replace it with a random nearby key.
+        \item Rejoin the modified characters into a new word.
+        \item Combine all words to form the final noisy sentence.
+    \end{enumerate}
+    Why reasonable:\\
+    Introducing typos simulates real-world typing behavior that users frequently make small errors, especially when typing long words. By introducing typos, we can enhance the model's error tolerance ability.
+\end{itemize}
+Finally, in the ``custom\_transform" function, I set the overall prob to be 0.2 for both transformation functions and apply both transformations on the example[text]. This means, each sentence (i.e. example[text]) will have an independent probability of 0.2 to go through each transformation.  
+
+
+
+
+
+
 % \section*{Part I. Q2. 2. No written element, submit \texttt{out\_transformed.txt} to autograder. }
 \section*{Q3. 1}
 \textbf{Report \& Analysis}
     \begin{itemize}
-        \item Report the accuracy values for both the original and transformed test data evaluations.  \textcolor{gray}{TODO}
-        \item Analyze and discuss the following: (1) Did the model's performance on the transformed test data improve after applying data augmentation? (2) How did data augmentation affect the model's performance on the original test data? Did it enhance or diminish its accuracy? \textcolor{gray}{TODO}
-        \item Offer an intuitive explanation for the observed results, considering the impact of data augmentation on model training. \textcolor{gray}{TODO}
-        \item Explain one limitation of the data augmentation approach used here to improve performance on out-of-distribution (OOD) test sets. \textcolor{gray}{TODO}
+        \item Report the accuracy values for both the original and transformed test data evaluations. 
+        \begin{table}[h!]
+        \centering
+        \caption{Model Accuracy on Original and Transformed Test Data}
+        \begin{tabular}{lcc}
+        \hline
+        \textbf{Model} & \textbf{Original Test Data} & \textbf{Transformed Test Data} \\ 
+        \hline
+        Raw Model & 0.92252  & 0.84704 \\
+        Augmented Model & 0.92312 & 0.89332 \\
+        \hline
+        \end{tabular}
+        \end{table}
+        
+        \item Analyze and discuss the following: (1) Did the model's performance on the transformed test data improve after applying data augmentation? (2) How did data augmentation affect the model's performance on the original test data? Did it enhance or diminish its accuracy? \\
+        
+        (1): Yes. The augmented model achieved 0.89332 accuracy on the transformed test set, compared to 0.84704 for the raw model. This indicates that data augmentation improved robustness to transformed data, likely by exposing the model to a wider variety of training examples that better resemble distribution shifts. \\
+
+        (2): Data augmentation slightly improved performance on the original test set as well. Accuracy increased from 0.92252 (raw model) to 0.92312 (augmented model). While the improvement is small, it shows that augmentation did not harm performance and may have helped reduce overfitting by improving generalization.\\
+        
+        \item Offer an intuitive explanation for the observed results, considering the impact of data augmentation on model training. \\
+
+        Data augmentation increases the diversity of training samples by introducing controlled transformations. This helps the model avoid memorizing specific patterns in the training set and instead learn more generalizable decision boundaries. As a result, the model becomes more robust to variations that appear during testing, especially when inputs differ from the original training distribution (e.g., modified, noisy, or transformed data).\\
+        
+        
+        \item Explain one limitation of the data augmentation approach used here to improve performance on out-of-distribution (OOD) test sets. \\
+
+        Although augmentation helps generalization, it only improves performance against transformations that are explicitly simulated during training. If real-world OOD data involves shifts not captured by the chosen augmentation strategies—such as changes in semantics, style, domain, or completely new feature distributions—the model may still fail. In other words, augmentation does not guarantee robustness to unseen or qualitatively different distribution shifts, only those it artificially mimics.
     \end{itemize}
+
+\newpage
 \section*{Part II. Q4}
 % 
 % \section{Data Statistics and Processing (8pt)}
@@ -38,11 +104,11 @@ Describe your transformation of dataset.
 \toprule
 Statistics Name & Train & Dev \\
 \midrule
-Number of examples & \textcolor{gray}{XXX} & \textcolor{gray}{XXX} \\
-Mean sentence length & \textcolor{gray}{XXX}& \textcolor{gray}{XXX} \\
-Mean SQL query length & \textcolor{gray}{XXX}& \textcolor{gray}{XXX}  \\
-Vocabulary size (natural language)& \textcolor{gray}{XXX}& \textcolor{gray}{XXX}  \\
-Vocabulary size (SQL)& \textcolor{gray}{XXX}& \textcolor{gray}{XXX}  \\
+Number of examples & \textcolor{gray}{4225} & \textcolor{gray}{466} \\
+Mean sentence length & \textcolor{gray}{17.10}& \textcolor{gray}{17.07} \\
+Mean SQL query length & \textcolor{gray}{216.37}& \textcolor{gray}{210.05}  \\
+Vocabulary size (natural language)& \textcolor{gray}{791}& \textcolor{gray}{465}  \\
+Vocabulary size (SQL)& \textcolor{gray}{555}& \textcolor{gray}{395}  \\
 \bottomrule
 \end{tabular}
 \caption{Data statistics before any pre-processing. \textcolor{gray}{You need to at least provide the statistics listed above, and can add new entries.}}
@@ -56,7 +122,11 @@ Vocabulary size (SQL)& \textcolor{gray}{XXX}& \textcolor{gray}{XXX}  \\
 Statistics Name & Train & Dev \\
 \midrule
 \multicolumn{3}{l}{\textbf{T5 fine-tuned model}} \\ % \textcolor{gray}{(T5 fine-tuning or T5 from scratch)}} \\
-\textcolor{gray}{Statistics Name} & \textcolor{gray}{XXX}& \textcolor{gray}{XXX} \\
+Number of examples & \textcolor{gray}{4225} & \textcolor{gray}{466} \\
+Mean sentence length (tokens)& \textcolor{gray}{251.58}& \textcolor{gray}{253.11} \\
+Mean SQL query length (tokens)& \textcolor{gray}{217.37}& \textcolor{gray}{211.05}  \\
+Vocabulary size - NL (unique token IDs)& \textcolor{gray}{964}& \textcolor{gray}{547}  \\
+Vocabulary size - SQL (unique token IDs)& \textcolor{gray}{692}& \textcolor{gray}{413}  \\
 \midrule
 \bottomrule
 \end{tabular}
@@ -80,16 +150,20 @@ Statistics Name & Train & Dev \\
 \toprule
 Design choice & Description \\
 \midrule
-Data processing & \textcolor{gray}{Describe the data processing steps you undertook, if any.} \\
-Tokenization & \textcolor{gray}{Describe how you did the tokenization for the inputs to the encoder and decoder. If you use anything else than the default T5 tokenizer, specify what you use, and why you choose to use it.} \\
-Architecture & \textcolor{gray}{Describe the components in the T5 architecture that you chose to fine-tune. Did you fine-tune the entire model, specific layers?} \\
-Hyperparameters & \textcolor{gray}{List the key hyperparameters that you used, including the learning rate, batch size, and stopping criteria.} \\
+Data processing & \textcolor{gray}{We implemented a query-specific schema extraction approach that dynamically selects only the relevant database tables for each natural language query. Using keyword-based heuristics with discriminative signals, our method includes an average of 3.34 tables per query compared to all 21 tables in the full schema approach. This precision-focused extraction achieves 98.28\% coverage on the development set (458 out of 466 queries) while reducing input length by 76\% (from 1073 to 252 T5 tokens). The input format follows the structure: ``Tables: [relevant CREATE TABLE statements] Question: [NL query] Answer:'', with the target output being the corresponding SQL query. } \\
+
+\\
+Tokenization & \textcolor{gray}{T5TokenizerFast (SentencePiece, 32k vocab). Mean: 251.58 input tokens, 217.37 output tokens. Max length extended to 2048 (0.09\% samples $>$512).} \\
+\\
+Architecture & \textcolor{gray}{Full T5-small fine-tuning without layer freezing (60M params, 6 enc/6 dec layers, $d_{model}$=512, 8 heads). Extended max position embeddings to 2048. } \\
+\\
+Hyperparameters & \textcolor{gray}{LR=$10^{-3}$, AdamW, cosine scheduling, batch=16/64, epochs=30, patience=10. Full eval every 2 epochs from epoch 10. Beam search (4 beams), cross-entropy loss with teacher forcing. } \\
 \bottomrule
 \end{tabular}
 \caption{Details of the best-performing T5 model configurations (fine-tuned)}
 \label{tab:t5_results_ft}
 \end{table}
-
+\newpage
 
 
 
@@ -98,7 +172,7 @@ Hyperparameters & \textcolor{gray}{List the key hyperparameters that you used, i
 
 \section*{Q6. }
 
-\paragraph{Quantitative Results:} 
+\subsection*{Quantitative Results:} 
 \begin{table}[h!]
 \centering
 \begin{tabular}{lcc}
@@ -109,7 +183,7 @@ Hyperparameters & \textcolor{gray}{List the key hyperparameters that you used, i
   \midrule
   
   \multicolumn{3}{l}{\textbf{T5 fine-tuned}} \\
-  Full model & XX.XX & XX.XX \\[5pt]
+  Full model & 80.90 & 82.61 \\[5pt]
   % Variant1 & XX.XX & XX.XX \\
   % Variant2 & XX.XX & XX.XX \\
   % Variant3 & XX.XX & XX.XX \\
@@ -117,42 +191,258 @@ Hyperparameters & \textcolor{gray}{List the key hyperparameters that you used, i
   \midrule
   \multicolumn{3}{l}{\textbf{Test Results}} \\
   \midrule
-  T5 fine-tuning & XX.XX & XX.XX \\
+  T5 fine-tuning & 72.69 & 74.53 \\
   \bottomrule
 \end{tabular}  
-\caption{Development and test results. \textcolor{gray}{Use this table to report quantitative results for both dev and test results.}}
+\caption{Development and test results.}
 \label{tab:results}
 \end{table}
 
 
-\paragraph{Qualitative Error Analysis:} 
+\subsection*{Qualitative Error Analysis:} 
 
+\begin{table}[h!]
+\centering
+\small
+\caption{Error Analysis for Fine-tuned T5 Model (466 dev queries)}
+\label{tab:error_analysis_ft}
+\begin{tabular}{p{2.5cm}p{5cm}p{3.5cm}p{1.5cm}}
+\toprule
+\textbf{Error Type} & \textbf{Example of Error} & \textbf{Error Description} & \textbf{Statistics} \\
+\midrule
 
-\begin{landscape}
-\begin{table}
-  \centering
-  \begin{tabular}{p{2cm}p{6cm}p{6cm}p{6cm}}
-    \toprule
-    \textbf{Error Type}& \textbf{Example Of Error} & \textbf{Error Description} & \textbf{Statistics} \\
-    \midrule
-    \textcolor{gray}{Error name}  & \textcolor{gray}{Snippet from datapoint examplifying error} & \textcolor{gray}{Describe the error in natural language} & \textcolor{gray}{Provide statistics in the form ``COUNT/TOTAL'' on the prevalence of the error. TOTAL is the number of relevant examples (e.g. number of queries, for query-level error), and COUNT is the number of examples that showed this error.}  \\
-    
-    \midrule
-    &  &   & \\
-    \bottomrule
-  \end{tabular}
-  \label{tab:qualitative}
-  \caption{Use this table for your qualitative analysis on the dev set.}\label{tab:qualitative}
+Incorrect WHERE Condition & 
+\textbf{Query:} ``flights from boston to baltimore before 8am''
+\newline
+\textbf{Ground Truth:} \texttt{...departure\_time < 800}
+\newline
+\textbf{Predicted:} \texttt{...BETWEEN 0 AND 1200} &
+Incorrect filtering logic: wrong time constraints, reversed city order, or missing conditions in WHERE clause &
+78/466 \\
+
+\midrule
+
+Missing Tables & 
+\textbf{Query:} ``what does IAH mean''
+\newline
+\textbf{Ground Truth:} \texttt{SELECT ... FROM airport}
+\newline
+\textbf{Predicted:} \texttt{SELECT ... FROM airline} &
+Required tables omitted from query, confusing similar entities (airport vs airline) &
+11/466 \\
+
+\midrule
+
+Extra Tables & 
+\textbf{Query:} ``flights from boston to atlanta after 5pm''
+\newline
+\textbf{Ground Truth:} Uses flight, city, airport\_service
+\newline
+\textbf{Predicted:} Adds unnecessary aircraft, equipment\_sequence &
+Unnecessary tables included in JOIN operations &
+10/466 \\
+
+\midrule
+
+Wrong Columns & 
+\textbf{Query:} ``what kind of airplane for boston to atlanta''
+\newline
+\textbf{Ground Truth:} \texttt{SELECT flight\_id ...}
+\newline
+\textbf{Predicted:} \texttt{SELECT aircraft\_code ...} &
+Incorrect column selection in SELECT clause &
+5/466 \\
+
+\midrule
+
+Missing Aggregation & 
+\textbf{Query:} ``flights with maximum number of stops''
+\newline
+\textbf{Ground Truth:} \texttt{...stops = (SELECT MAX(stops) ...)}
+\newline
+\textbf{Predicted:} Missing MAX subquery &
+Required aggregation functions not generated &
+3/466 \\
+
+\midrule
+\textbf{Correct} & 
+\multicolumn{2}{l}{Model successfully generates correct SQL matching ground truth} &
+\textbf{377/466} \\
+
+\bottomrule
+\end{tabular}
 \end{table}
-\end{landscape}
+
+
 
 \section*{Q7.}
 
-Provide a link to a google drive which contains a model checkpoint used to generate outputs you have submitted. 
-\textcolor{gray}{TODO}
+Google Drive for Fine-tuned T5: \\
+\textcolor{gray}{\nolinkurl{https://drive.google.com/drive/folders/1hcQE7bt_UMFe6wvGp_68ezJMXJEhb0S9?usp=sharing}}
 
 \section*{Extra Credit: }
 
-If you are doing extra credit assignment, please describe your system here, as well as provide a link to a google drive which contains a model checkpoint used to generate outputs you have submitted. 
-\textcolor{gray}{Optional TODO}
+\subsection*{Data Statistics}
+\begin{table}[h!]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Statistics Name & Train & Dev \\
+\midrule
+Number of examples & \textcolor{gray}{4225} & \textcolor{gray}{466} \\
+Mean sentence length & \textcolor{gray}{17.10}& \textcolor{gray}{17.07} \\
+Mean SQL query length & \textcolor{gray}{216.37}& \textcolor{gray}{210.05}  \\
+Vocabulary size (natural language)& \textcolor{gray}{791}& \textcolor{gray}{465}  \\
+Vocabulary size (SQL)& \textcolor{gray}{555}& \textcolor{gray}{395}  \\
+\bottomrule
+\end{tabular}
+\caption{Data statistics before any pre-processing (Identical to Finetune).}
+\label{tab:data_stats_before}
+\end{table}
+\begin{table}[h!]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Statistics Name & Train & Dev \\
+\midrule
+\multicolumn{3}{l}{\textbf{T5 trained-from-scr model}} \\ % \textcolor{gray}{(T5 fine-tuning or T5 from scratch)}} \\
+Number of examples & \textcolor{gray}{4225} & \textcolor{gray}{466} \\
+Mean sentence length (tokens)& \textcolor{gray}{251.58}& \textcolor{gray}{253.11} \\
+Mean SQL query length (tokens)& \textcolor{gray}{217.37}& \textcolor{gray}{211.05}  \\
+Vocabulary size - NL (unique token IDs)& \textcolor{gray}{964}& \textcolor{gray}{547}  \\
+Vocabulary size - SQL (unique token IDs)& \textcolor{gray}{692}& \textcolor{gray}{413}  \\
+\midrule
+\bottomrule
+\end{tabular}
+\caption{Data statistics after pre-processing for T5 Trained-from-scrach model (Identical to Finetune)}
+\label{tab:data_stats_after}
+\end{table}
+
+\newpage
+\subsection*{Details of Model \& Training Config}
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{p{3.5cm}p{10cm}}
+\toprule
+Design choice & Description \\
+\midrule
+Data processing & \textcolor{gray}{Identical to the fine-tuned model: query-specific schema extraction using keyword-based heuristics with discriminative signals. Input format: ``Tables: [relevant CREATE TABLE statements] Question: [NL query] Answer:'' with SQL query as target output. This ensures a fair comparison between fine-tuning and training from scratch. } \\
+
+\\
+Tokenization & \textcolor{gray}{T5TokenizerFast with SentencePiece subword tokenization (32,000 vocabulary), identical to fine-tuned model.} \\
+\\
+Architecture & \textcolor{gray}{T5-small architecture initialized with random weights (60M parameters, 6 encoder/6 decoder layers, $d_{model}$=512, $d_{ff}$=2048, 8 attention heads). No pretrained weights loaded. Configuration identical to fine-tuned model except for parameter initialization. Extended maximum position embeddings from 512 to 2048.} \\
+\\
+Hyperparameters & \textcolor{gray}{Learning rate: $3 \times 10^{-4}$ (lower than fine-tuning to stabilize training from random initialization), AdamW optimizer (weight decay=0), cosine annealing scheduler with 10 warmup epochs. Batch size: 32 (train), 64 (eval). Training: max 100 epochs with early stopping (patience=10). Evaluation: full evaluation every 4 epochs from epoch 40, fast evaluation (loss-only) otherwise. Generation: beam search with 4 beams. Loss: cross-entropy with teacher forcing. } \\
+\bottomrule
+\end{tabular}
+\caption{Details of the best-performing T5 model configurations (trained-from-scratch)}
+\label{tab:t5_results_ft}
+\end{table}
+
+\newpage
+\subsection*{Results \& Error Analysis}
+
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+  \toprule
+  System & Query EM & F1 score\\
+  \midrule
+  \multicolumn{3}{l}{\textbf{Dev Results}} \\
+  \midrule
+  
+  \multicolumn{3}{l}{\textbf{T5 Trained-scr}} \\
+  Full model & 55.15 & 58.66 \\[5pt]
+  % Variant1 & XX.XX & XX.XX \\
+  % Variant2 & XX.XX & XX.XX \\
+  % Variant3 & XX.XX & XX.XX \\
+  
+  \midrule
+  \multicolumn{3}{l}{\textbf{Test Results}} \\
+  \midrule
+  T5 Trained-scr & 47.69 & 51.62 \\
+  \bottomrule
+\end{tabular}  
+\caption{Development and test results for T5 trainged from scratch}
+\label{tab:results}
+\end{table}
+
+
+\begin{table}[h]
+\centering
+\small
+\caption{Error Analysis for From-Scratch T5 Model (466 dev queries)}
+\label{tab:error_analysis_scr}
+\begin{tabular}{p{2.5cm}p{5cm}p{3.5cm}p{1.5cm}}
+\toprule
+\textbf{Error Type} & \textbf{Example of Error} & \textbf{Error Description} & \textbf{Statistics} \\
+\midrule
+
+Incorrect WHERE Condition & 
+\textbf{Query:} ``show me flights from baltimore to atlanta''
+\newline
+\textbf{Ground Truth:} \texttt{...city\_name='BALTIMORE' AND ...city\_name='ATLANTA'}
+\newline
+\textbf{Predicted:} \texttt{...city\_name='ATLANTA' AND ...city\_name='BALTIMORE'} &
+Severe filtering errors: frequently reverses from/to cities, wrong temporal constraints &
+196/466 \\
+
+\midrule
+
+Missing Tables & 
+\textbf{Query:} ``find an airline for boston to washington''
+\newline
+\textbf{Ground Truth:} \texttt{SELECT ... FROM airline, flight ...}
+\newline
+\textbf{Predicted:} \texttt{SELECT ... FROM flight ...} &
+Critical tables omitted, especially airline and aircraft. Poor entity understanding &
+26/466 \\
+
+\midrule
+
+Extra Tables & 
+\textbf{Query:} ``flights from dallas to boston''
+\newline
+\textbf{Ground Truth:} Uses flight, city, airport\_service
+\newline
+\textbf{Predicted:} Adds fare, aircraft, airline unnecessarily &
+Many unnecessary tables included, weak query understanding &
+24/466 \\
+
+\midrule
+
+Wrong Columns & 
+\textbf{Query:} ``what type of aircraft flies from boston''
+\newline
+\textbf{Ground Truth:} \texttt{SELECT aircraft\_code ...}
+\newline
+\textbf{Predicted:} \texttt{SELECT flight\_id ...} &
+Wrong entity identifiers, confusing flight IDs with aircraft codes &
+7/466 \\
+
+\midrule
+
+Missing Aggregation & 
+\textbf{Query:} ``count flights from boston to SF''
+\newline
+\textbf{Ground Truth:} \texttt{SELECT COUNT(*) ...}
+\newline
+\textbf{Predicted:} \texttt{SELECT flight\_id ...} &
+Fails to generate aggregation for counting/min/max &
+4/466 \\
+
+\midrule
+\textbf{Correct} & 
+\multicolumn{2}{l}{Model successfully generates correct SQL matching ground truth} &
+\textbf{257/466} \\
+
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Google Drive for Trained-from-Scratch T5}
+\nolinkurl{https://drive.google.com/drive/folders/1LVf0-Miugi9cEwy_7Hf3s7col0tt4xos?usp=sharing}
 \end{document}
