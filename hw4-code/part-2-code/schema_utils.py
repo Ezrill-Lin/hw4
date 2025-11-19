@@ -26,7 +26,7 @@ def load_full_schema(schema_path: str) -> Dict[str, str]:
 def extract_table_names_from_query(nl_query: str) -> Set[str]:
     """
     Extract relevant table names from natural language query using keyword matching heuristics.
-    Uses a tiered approach: always include core tables, then add based on keywords.
+    Uses a precision-focused approach: start with minimal tables and add only when strong signals present.
     
     Args:
         nl_query: Natural language query
@@ -37,160 +37,58 @@ def extract_table_names_from_query(nl_query: str) -> Set[str]:
     relevant_tables = set()
     nl_lower = nl_query.lower()
     
-    # Tier 1: Core tables that appear in most queries (always include)
-    core_tables = {'flight', 'fare'}
-    relevant_tables.update(core_tables)
+    # Start with flight table (appears in 74% of all queries)
+    relevant_tables.add('flight')
     
-    # All table names - for direct matching
-    all_tables = [
-        'aircraft', 'airline', 'airport', 'airport_service', 'city',
-        'class_of_service', 'date_day', 'days', 'equipment_sequence',
-        'fare', 'fare_basis', 'flight', 'flight_fare', 'flight_leg',
-        'flight_stop', 'food_service', 'ground_service', 'restriction',
-        'state', 'time_interval', 'time_zone'
-    ]
-    
-    # Direct table name matching (if query mentions table name directly)
-    for table in all_tables:
-        if table.replace('_', ' ') in nl_lower or table in nl_lower:
-            relevant_tables.add(table)
-    
-    # Keyword to table mapping (Tier 2 & 3)
-    keyword_to_tables = {
-        # Meta/abbreviation queries
-        'mean': ['airport', 'airline', 'city', 'aircraft'],
-        'abbreviation': ['airport', 'airline', 'aircraft'],
-        'code': ['airport', 'airline', 'aircraft'],
-        'stand for': ['airport', 'airline', 'aircraft'],
-        'what is': ['airport', 'airline', 'city'],
-        
-        # Flight related (very common)
-        'flight': ['airline', 'airport', 'aircraft'],
-        'flights': ['airline', 'airport', 'aircraft'],
-        'fly': ['airline', 'airport'],
-        'airline': ['airline'],
-        'airlines': ['airline'],
-        'carrier': ['airline'],
-        'airport': ['airport', 'airport_service', 'city'],
-        'airports': ['airport', 'airport_service', 'city'],
-        
-        # Location related
-        'city': ['city', 'airport', 'airport_service', 'state'],
-        'cities': ['city', 'airport', 'airport_service'],
-        'from': ['airport', 'city', 'airline'],
-        'to': ['airport', 'city', 'airline'],
-        'between': ['airport', 'city'],
-        'state': ['state', 'city', 'airport'],
-        'arrival': ['airport', 'city', 'state'],
-        'arrivals': ['airport', 'city', 'state'],
-        
-        # Cost/pricing related
-        'fare': ['fare_basis', 'flight_fare', 'restriction', 'class_of_service'],
-        'fares': ['fare_basis', 'flight_fare', 'restriction'],
-        'cost': ['fare_basis', 'flight_fare'],
-        'price': ['fare_basis', 'flight_fare'],
-        'cheap': ['fare_basis', 'flight_fare', 'restriction'],
-        'expensive': ['fare_basis', 'flight_fare'],
-        'cheapest': ['fare_basis', 'flight_fare', 'restriction'],
-        'least': ['fare_basis', 'flight_fare'],
-        'lowest': ['fare_basis', 'flight_fare'],
-        'minimum': ['fare_basis', 'flight_fare'],
-        'maximum': ['fare_basis', 'flight_fare'],
-        
-        # Aircraft related
-        'aircraft': ['aircraft', 'equipment_sequence'],
-        'plane': ['aircraft', 'equipment_sequence'],
-        'airplane': ['aircraft', 'equipment_sequence'],
-        'equipment': ['aircraft', 'equipment_sequence'],
-        
-        # Service related
-        'meal': ['food_service'],
-        'food': ['food_service'],
-        'breakfast': ['food_service'],
-        'lunch': ['food_service'],
-        'dinner': ['food_service'],
-        'snack': ['food_service'],
-        'service': ['class_of_service', 'airport_service', 'ground_service', 'food_service'],
-        'class': ['class_of_service', 'fare_basis'],
-        'first class': ['class_of_service', 'fare_basis'],
-        'business class': ['class_of_service', 'fare_basis'],
-        'business': ['class_of_service', 'fare_basis'],
-        'economy': ['class_of_service', 'fare_basis'],
-        'coach': ['class_of_service', 'fare_basis'],
-        'thrift': ['class_of_service', 'fare_basis'],
-        
-        # Time related
-        'time': ['time_interval', 'date_day'],
-        'day': ['date_day', 'days'],
-        'days': ['date_day', 'days'],
-        'date': ['date_day'],
-        'week': ['date_day', 'days'],
-        'weekday': ['date_day', 'days'],
-        'weekend': ['date_day', 'days'],
-        'month': ['date_day'],
-        'morning': ['time_interval'],
-        'afternoon': ['time_interval'],
-        'evening': ['time_interval'],
-        'night': ['time_interval'],
-        'before': ['time_interval', 'date_day'],
-        'after': ['time_interval', 'date_day'],
-        'early': ['time_interval'],
-        'late': ['time_interval'],
-        'latest': ['time_interval'],
-        'earliest': ['time_interval'],
-        
-        # Ground transportation
-        'ground': ['ground_service', 'airport_service'],
-        'transport': ['ground_service'],
-        'transportation': ['ground_service'],
-        'rental': ['ground_service'],
-        'car': ['ground_service'],
-        'limousine': ['ground_service'],
-        'taxi': ['ground_service'],
-        'train': ['ground_service'],
-        'bus': ['ground_service'],
-        'shuttle': ['ground_service'],
-        
-        # Restrictions/requirements
-        'restriction': ['restriction', 'fare_basis'],
-        'restrictions': ['restriction', 'fare_basis'],
-        'require': ['restriction', 'fare_basis'],
-        'requirement': ['restriction', 'fare_basis'],
-        'advance': ['restriction', 'fare_basis'],
-        'purchase': ['restriction', 'fare_basis'],
-        
-        # Stops/connections
-        'stop': ['flight_stop', 'flight_leg'],
-        'stops': ['flight_stop', 'flight_leg'],
-        'nonstop': ['flight_stop', 'flight_leg'],
-        'direct': ['flight_stop', 'flight_leg'],
-        'connection': ['flight_leg', 'flight_stop'],
-        'connecting': ['flight_leg', 'flight_stop'],
-        'layover': ['flight_leg', 'flight_stop'],
-        
-        # Movement/direction
-        'departure': ['airport', 'city'],
-        'depart': ['airport', 'city'],
-        'departing': ['airport', 'city'],
-        'arrival': ['airport', 'city'],
-        'arrive': ['airport', 'city'],
-        'arriving': ['airport', 'city'],
-        'leave': ['airport', 'city'],
-        'leaving': ['airport', 'city'],
-        'return': ['airport', 'city'],
-        'returning': ['airport', 'city'],
-        'roundtrip': ['airport', 'city'],
-        'round trip': ['airport', 'city'],
-        'one way': ['airport', 'city'],
+    # Strong signals for specific tables (high precision keywords)
+    strong_signals = {
+        'fare': ['fare', 'fares', 'cost', 'price', 'cheap', 'expensive', 'cheapest', 'least expensive', 'how much'],
+        'ground_service': ['ground transportation', 'ground', 'limousine', 'rental', 'car rental', 'taxi', 'train'],
+        'airline': ['airline', 'airlines', 'carrier', 'ff', 'co', 'dl', 'ua', 'aa', 'wn', 'canadian airlines', 'lufthansa', 'twa', 'united'],
+        'aircraft': ['aircraft', 'type of aircraft', 'what aircraft', 'what type', 'plane type', 'what kind of plane', 'capacity', 'seats', 'f28', 'dc10', 'boeing', '727', '737', '747', '734'],
+        'restriction': ['restriction', 'restrictions', 'advance purchase', 'requirement'],
+        'class_of_service': ['first class', 'business class', 'coach', 'thrift', 'economy class', 'classes of service', 'what are the different classes'],
+        'food_service': ['meal', 'breakfast', 'dinner', 'lunch', 'snack', 'food service'],
+        'airport': ['what does', 'what is', 'abbreviation', 'airport code', 'mean', 'where does'],
+        'state': ['state', 'arrivals', 'departures', 'leaving on'],
+        'city': ['city', 'cities'],
+        'airport_service': ['airport service', 'how far from the airport'],
+        'fare_basis': ['fare code', 'fare basis', 'code y', 'what does code', 'yn code', 'stand for'],
+        'flight_stop': ['stop', 'stops', 'stopover'],
+        'flight_leg': ['connection', 'connecting'],
+        'date_day': ['daily', 'weekday', 'weekend'],
+        'days': ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday', 'what is sa'],
+        'time_interval': ['morning', 'afternoon', 'evening', 'night', 'before', 'after'],
     }
     
-    for keyword, tables in keyword_to_tables.items():
-        if keyword in nl_lower:
-            relevant_tables.update(tables)
+    # Check for strong signals
+    for table, keywords in strong_signals.items():
+        for keyword in keywords:
+            if keyword in nl_lower:
+                relevant_tables.add(table)
+                break
     
-    # Always ensure we have at least the core tables
-    if len(relevant_tables) < 2:
-        relevant_tables.update(['flight', 'fare', 'airline', 'airport'])
+    # Special case: if asking about fares, also include fare_basis and flight_fare
+    if 'fare' in relevant_tables:
+        relevant_tables.update(['fare_basis', 'flight_fare'])
+    
+    # Special case: if ground_service mentioned, likely need airport too
+    if 'ground_service' in relevant_tables:
+        relevant_tables.add('airport')
+    
+    # Special case: if asking about time, probably need dates
+    if 'time_interval' in relevant_tables or any(day in nl_lower for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']):
+        relevant_tables.add('date_day')
+    
+    # Special case: location queries may need airport/city linkage
+    if 'airport' in relevant_tables or any(word in nl_lower for word in ['from', 'to', 'between', 'where does']):
+        if not any(t in relevant_tables for t in ['ground_service', 'fare']):
+            # Pure flight query with locations
+            if 'airline' in relevant_tables and 'where does' in nl_lower:
+                # "where does <airline> fly" needs airport
+                relevant_tables.add('airport')
+            elif 'airline' not in relevant_tables:
+                relevant_tables.add('airport')
     
     return relevant_tables
 
